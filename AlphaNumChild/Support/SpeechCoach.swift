@@ -3,6 +3,13 @@ import Foundation
 
 /// Friendly voice prompts and praise using the system speech synthesizer,
 /// so the app needs no bundled audio files.
+///
+/// Voice quality note: the app automatically picks the warmest, most
+/// natural English voice installed on the device — premium and enhanced
+/// voices win over the default robotic one. For the best result, download
+/// a premium voice once per phone in Settings > Accessibility >
+/// Spoken Content > Voices > English (e.g. "Ava (Premium)"); the app
+/// will find and use it automatically.
 final class SpeechCoach {
 
     static let shared = SpeechCoach()
@@ -11,13 +18,44 @@ final class SpeechCoach {
 
     private let synthesizer = AVSpeechSynthesizer()
 
+    private lazy var voice: AVSpeechSynthesisVoice? = Self.warmestVoice()
+
     private let praises = [
-        "Great job!", "You did it!", "Awesome!", "Wow, amazing!",
-        "Fantastic!", "Way to go!", "Super!", "Hooray!",
+        "Great job!", "You did it!", "Beautiful writing!",
+        "I'm so proud of you!", "That was wonderful!",
+        "You're getting so good at this!", "Amazing work!", "Hooray for you!",
     ]
 
     private init() {
         UserDefaults.standard.register(defaults: [Self.soundKey: true])
+    }
+
+    /// The most natural-sounding English voice available on this device:
+    /// premium beats enhanced beats compact, warm female voices are
+    /// preferred, and well-liked Apple voices rank highest.
+    private static func warmestVoice() -> AVSpeechSynthesisVoice? {
+        let preferredNames = ["ava", "samantha", "zoe", "allison", "susan",
+                              "nicky", "serena", "kate", "karen", "moira", "tessa"]
+        let candidates = AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language.hasPrefix("en") }
+
+        func score(_ v: AVSpeechSynthesisVoice) -> Int {
+            var s = 0
+            switch v.quality {
+            case .premium: s += 40
+            case .enhanced: s += 30
+            default: break
+            }
+            if v.gender == .female { s += 8 }
+            if let i = preferredNames.firstIndex(where: { v.name.lowercased().contains($0) }) {
+                s += (preferredNames.count - i) * 2
+            }
+            if v.language == "en-US" { s += 4 }
+            return s
+        }
+
+        return candidates.max(by: { score($0) < score($1) })
+            ?? AVSpeechSynthesisVoice(language: "en-US")
     }
 
     private var enabled: Bool {
@@ -28,9 +66,13 @@ final class SpeechCoach {
         guard enabled else { return }
         synthesizer.stopSpeaking(at: .immediate)
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        utterance.rate = 0.45
-        utterance.pitchMultiplier = 1.2
+        utterance.voice = voice
+        // Gentle, natural delivery: near-default pitch (a big pitch boost
+        // is what makes synthesized speech sound robotic) and a slightly
+        // unhurried rate for little ears.
+        utterance.rate = 0.46
+        utterance.pitchMultiplier = 1.05
+        utterance.postUtteranceDelay = 0.1
         synthesizer.speak(utterance)
     }
 

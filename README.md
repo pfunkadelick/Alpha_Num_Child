@@ -35,6 +35,16 @@ numbers by tracing them with a finger — inspired by LeapFrog's
 - A speaker button on the home screen mutes the voice; the gear button
   lets a grown-up reset all stars.
 
+### Making the voice sound its best
+
+The app speaks with the nicest voice installed on the device — it
+automatically prefers Apple's premium and enhanced voices over the
+default robotic one. For a noticeably warmer, more natural voice, do
+this once on each phone: **Settings → Accessibility → Spoken Content →
+Voices → English**, then download **Ava (Premium)** or
+**Samantha (Enhanced)**. The app (and the web version in Safari) will
+find and use it automatically.
+
 ## Getting it on your iPhones
 
 You need a Mac with **Xcode 16 or newer** (free on the Mac App Store) and

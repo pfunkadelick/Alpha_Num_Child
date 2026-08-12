@@ -537,8 +537,9 @@ const CATEGORIES = {
   numbers:   { title: "Numbers", guides: [0.15, 0.5, 0.85] },
 };
 const CRAYONS = ["#f2554f", "#4d8cf2", "#4ab877", "#f99933", "#a86bf0", "#f073a6"];
-const PRAISES = ["Great job!", "You did it!", "Awesome!", "Wow, amazing!",
-                 "Fantastic!", "Way to go!", "Super!", "Hooray!"];
+const PRAISES = ["Great job!", "You did it!", "Beautiful writing!",
+                 "I'm so proud of you!", "That was wonderful!",
+                 "You're getting so good at this!", "Amazing work!", "Hooray for you!"];
 
 // Phonics rewards: letters pair with a word that starts with their sound,
 // numbers pair with a counted set of objects.
@@ -604,13 +605,46 @@ const store = {
 };
 
 // ---------------------------------------------------------------- speech
+// Pick the warmest, most natural English voice the device offers.
+// Premium/enhanced/natural voices beat the default compact one; well-liked
+// warm voices (Ava, Samantha, ...) rank highest. If a nicer voice is
+// downloaded later (iOS: Settings > Accessibility > Spoken Content >
+// Voices), the voiceschanged event re-picks automatically.
+let coachVoice = null;
+function pickVoice() {
+  const prefer = ["ava", "samantha", "zoe", "allison", "susan", "nicky",
+                  "serena", "kate", "karen", "moira", "tessa", "google us english"];
+  let best = null, bestScore = -1;
+  for (const v of speechSynthesis.getVoices()) {
+    if (!v.lang || !v.lang.toLowerCase().startsWith("en")) continue;
+    const name = v.name.toLowerCase();
+    let s = 0;
+    if (name.includes("premium")) s += 40;
+    if (name.includes("enhanced")) s += 30;
+    if (name.includes("natural")) s += 30;
+    const i = prefer.findIndex(p => name.includes(p));
+    if (i >= 0) s += (prefer.length - i) * 2;
+    if (v.lang.toLowerCase().startsWith("en-us")) s += 4;
+    if (v.localService) s += 1;
+    if (s > bestScore) { bestScore = s; best = v; }
+  }
+  coachVoice = best;
+}
+if ("speechSynthesis" in window) {
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+
 function say(text) {
   if (!store.soundOn || !("speechSynthesis" in window)) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "en-US";
-  u.rate = 0.9;
-  u.pitch = 1.2;
+  if (coachVoice) u.voice = coachVoice;
+  // Near-default pitch and a gentle pace — a big pitch boost is what
+  // makes synthesized speech sound robotic.
+  u.rate = 0.95;
+  u.pitch = 1.05;
   speechSynthesis.speak(u);
 }
 function buzz(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
