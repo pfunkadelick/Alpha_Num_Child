@@ -131,6 +131,66 @@
   .card-lower { background: linear-gradient(135deg, #4ab877, #29a0bd); }
   .card-numbers { background: linear-gradient(135deg, #6b80f2, #a86bf0); }
   .card-doodle { background: linear-gradient(135deg, #faa95e, #f5789e); }
+  #sticker-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: min(92vw, 440px);
+    border-radius: 24px;
+    padding: 14px 20px;
+    background: linear-gradient(90deg, #fabf40, #f28c59);
+    color: #ffffff;
+    box-shadow: 0 6px 14px rgba(30,60,90,0.18);
+    text-align: left;
+  }
+  #sticker-card:active { transform: scale(0.97); }
+  #sticker-card .gift { font-size: 38px; }
+  #sticker-card .col { display: flex; flex-direction: column; flex: 1; gap: 2px; }
+  #sticker-card .name { font-size: 19px; font-weight: 800; }
+  #sticker-card .count { font-size: 14px; font-weight: 700; opacity: 0.9; }
+  #sticker-card .chev { font-size: 26px; font-weight: 800; opacity: 0.8; }
+
+  /* ---------- Sticker book ---------- */
+  #sticker-scroll {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 16px calc(20px + env(safe-area-inset-bottom));
+  }
+  .sticker-section-title {
+    font-size: 19px;
+    font-weight: 800;
+    margin: 14px 4px 8px;
+  }
+  .sticker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: 10px;
+    max-width: 560px;
+  }
+  .sticker-slot {
+    background: rgba(255,255,255,0.5);
+    border-radius: 18px;
+    height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+  .sticker-slot.got { background: var(--paper); box-shadow: 0 3px 8px rgba(30,60,90,0.1); }
+  .sticker-slot .pic { font-size: 34px; line-height: 1; }
+  .sticker-slot .q { font-size: 28px; font-weight: 800; color: var(--track); line-height: 1; }
+  .sticker-slot .label { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+
+  .tile { position: relative; }
+  .tile .badge {
+    position: absolute;
+    top: 5px;
+    right: 7px;
+    font-size: 15px;
+  }
+
   .home-foot {
     display: flex;
     gap: 14px;
@@ -299,11 +359,21 @@
     .home-card, .round-btn, .big-btn, .tile { transition: none; }
   }
   #celebrate .praise {
-    font-size: 38px;
+    font-size: 30px;
     font-weight: 800;
     color: #ffffff;
     text-shadow: 0 2px 8px rgba(0,0,0,0.3);
     margin: 0;
+    text-align: center;
+    padding: 0 24px;
+  }
+  #celebrate .big-star.many { font-size: 44px; text-align: center; max-width: 320px; line-height: 1.2; }
+  #celebrate .new-sticker {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--gold);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    margin: -4px 0 0;
   }
   #celebrate .row { display: flex; gap: 14px; }
   .cele-btn {
@@ -369,6 +439,14 @@
         <span class="emoji">&#128396;&#65039;</span><span class="name">Doodle</span><span class="tag">Free draw</span>
       </button>
     </div>
+    <button id="sticker-card">
+      <span class="gift">&#127873;</span>
+      <span class="col">
+        <span class="name">Sticker Book</span>
+        <span class="count" id="sticker-count"></span>
+      </span>
+      <span class="chev">&#8250;</span>
+    </button>
     <div class="home-foot">
       <button class="foot-btn" id="btn-sound" aria-label="Toggle sound"></button>
       <button class="foot-btn" id="btn-reset" aria-label="Reset stars">&#9881;&#65039;</button>
@@ -406,6 +484,16 @@
     </div>
   </section>
 
+  <!-- Sticker book -->
+  <section class="screen" id="screen-stickers">
+    <div class="bar">
+      <button class="round-btn" id="btn-stickers-back" aria-label="Back">&#8592;</button>
+      <span class="bar-title">Sticker Book</span>
+      <span class="spacer"></span>
+    </div>
+    <div id="sticker-scroll"></div>
+  </section>
+
   <!-- Doodle -->
   <section class="screen" id="screen-doodle">
     <div class="bar" style="width:100%">
@@ -427,8 +515,9 @@
   <!-- Celebration overlay -->
   <div id="celebrate">
     <canvas id="confetti-canvas"></canvas>
-    <div class="big-star">&#11088;</div>
-    <p class="praise">Great job!</p>
+    <div class="big-star" id="reward-display">&#11088;</div>
+    <p class="praise" id="reward-phrase">Great job!</p>
+    <p class="new-sticker" id="new-sticker">&#10024; New sticker collected!</p>
     <div class="row">
       <button class="cele-btn" id="btn-again">&#8634; Again</button>
       <button class="cele-btn" id="btn-next-cele">Next &#8594;</button>
@@ -451,6 +540,42 @@ const CRAYONS = ["#f2554f", "#4d8cf2", "#4ab877", "#f99933", "#a86bf0", "#f073a6
 const PRAISES = ["Great job!", "You did it!", "Awesome!", "Wow, amazing!",
                  "Fantastic!", "Way to go!", "Super!", "Hooray!"];
 
+// Phonics rewards: letters pair with a word that starts with their sound,
+// numbers pair with a counted set of objects.
+const LETTER_REWARDS = {
+  A: ["🍎", "apple"],    B: ["🐻", "bear"],     C: ["🐱", "cat"],
+  D: ["🐶", "dog"],      E: ["🐘", "elephant"], F: ["🐟", "fish"],
+  G: ["🦒", "giraffe"],  H: ["🐴", "horse"],    I: ["🍦", "ice cream"],
+  J: ["🧃", "juice"],    K: ["🪁", "kite"],     L: ["🦁", "lion"],
+  M: ["🐵", "monkey"],   N: ["🪺", "nest"],     O: ["🐙", "octopus"],
+  P: ["🐧", "penguin"],  Q: ["👸", "queen"],    R: ["🌈", "rainbow"],
+  S: ["🐍", "snake"],    T: ["🐢", "turtle"],   U: ["☂️", "umbrella"],
+  V: ["🎻", "violin"],   W: ["🐳", "whale"],    X: ["🩻", "x-ray"],
+  Y: ["🪀", "yo-yo"],    Z: ["🦓", "zebra"],
+};
+const NUMBER_REWARDS = [
+  ["🍩", "donut", "donuts"], ["🚀", "rocket", "rockets"], ["🦆", "duck", "ducks"],
+  ["🍎", "apple", "apples"], ["🐸", "frog", "frogs"], ["⭐", "star", "stars"],
+  ["🐠", "fish", "fish"], ["🎈", "balloon", "balloons"], ["🍪", "cookie", "cookies"],
+  ["🐞", "ladybug", "ladybugs"],
+];
+
+function rewardFor(ch) {
+  if (ch.id.startsWith("N-")) {
+    const n = parseInt(ch.g, 10);
+    const [emoji, singular, plural] = NUMBER_REWARDS[n];
+    if (n === 0) {
+      return { display: emoji, sticker: emoji,
+               phrase: "Zero looks like a donut — zero means none!" };
+    }
+    const word = n === 1 ? singular : plural;
+    const name = ch.say.charAt(0).toUpperCase() + ch.say.slice(1);
+    return { display: emoji.repeat(n), sticker: emoji, phrase: name + " " + word + "!" };
+  }
+  const [emoji, word] = LETTER_REWARDS[ch.g.toUpperCase()] || ["⭐", "star"];
+  return { display: emoji, sticker: emoji, phrase: ch.g + " is for " + word + "!" };
+}
+
 // ---------------------------------------------------------------- storage
 // localStorage can throw in sandboxed/private contexts; fall back to memory.
 const mem = {};
@@ -466,8 +591,14 @@ const store = {
     s[id] = Math.min(3, (s[id] || 0) + 1);
     lsSet("stars", JSON.stringify(s));
   },
-  resetStars() { lsDel("stars"); },
+  resetStars() { lsDel("stars"); lsDel("stickers"); },
   get total() { return Object.values(this.stars).reduce((a, b) => a + b, 0); },
+  get stickers() { try { return JSON.parse(lsGet("stickers") || "[]"); } catch { return []; } },
+  hasSticker(id) { return this.stickers.includes(id); },
+  collect(id) {
+    const s = this.stickers;
+    if (!s.includes(id)) { s.push(id); lsSet("stickers", JSON.stringify(s)); }
+  },
   get soundOn() { return lsGet("soundOn") !== "0"; },
   set soundOn(v) { lsSet("soundOn", v ? "1" : "0"); },
 };
@@ -651,13 +782,43 @@ function renderHome() {
   const total = store.total;
   $("star-capsule").style.display = total > 0 ? "flex" : "none";
   $("star-count").textContent = total + " stars earned";
+  const allCount = Object.values(DATA).reduce((a, c) => a + c.length, 0);
+  $("sticker-count").textContent = store.stickers.length + " of " + allCount + " collected";
   $("btn-sound").innerHTML = store.soundOn ? "&#128266;" : "&#128263;";
+}
+
+// ---------------------------------------------------------------- stickers
+function openStickers() {
+  const wrap = $("sticker-scroll");
+  wrap.innerHTML = "";
+  for (const cat of Object.keys(CATEGORIES)) {
+    const h = document.createElement("div");
+    h.className = "sticker-section-title";
+    h.style.color = { uppercase: "#f2554f", lowercase: "#2f9e77", numbers: "#6b80f2" }[cat];
+    h.textContent = CATEGORIES[cat].title;
+    wrap.appendChild(h);
+    const grid = document.createElement("div");
+    grid.className = "sticker-grid";
+    for (const ch of DATA[cat]) {
+      const got = store.hasSticker(ch.id);
+      const slot = document.createElement("div");
+      slot.className = "sticker-slot" + (got ? " got" : "");
+      slot.innerHTML = got
+        ? `<span class="pic">${rewardFor(ch).sticker}</span><span class="label">${ch.g}</span>`
+        : `<span class="q">?</span><span class="label">${ch.g}</span>`;
+      grid.appendChild(slot);
+    }
+    wrap.appendChild(grid);
+  }
+  showScreen("stickers");
 }
 
 document.querySelectorAll(".home-card[data-cat]").forEach(btn => {
   btn.addEventListener("click", () => { openGrid(btn.dataset.cat); });
 });
 $("btn-doodle").addEventListener("click", () => { showScreen("doodle"); sizeDoodle(); });
+$("sticker-card").addEventListener("click", openStickers);
+$("btn-stickers-back").addEventListener("click", () => { renderHome(); showScreen("home"); });
 $("btn-sound").addEventListener("click", () => {
   store.soundOn = !store.soundOn;
   if (!store.soundOn) speechSynthesis && speechSynthesis.cancel();
@@ -682,7 +843,9 @@ function openGrid(cat) {
     const n = store.starsFor(ch.id);
     const stars = [0, 1, 2].map(k =>
       `<span class="${k < n ? "on" : "off"}">&#9733;</span>`).join("");
-    tile.innerHTML = `<span class="glyph" style="color:${CRAYONS[i % CRAYONS.length]}">${ch.g}</span>
+    const badge = store.hasSticker(ch.id)
+      ? `<span class="badge">${rewardFor(ch).sticker}</span>` : "";
+    tile.innerHTML = `${badge}<span class="glyph" style="color:${CRAYONS[i % CRAYONS.length]}">${ch.g}</span>
                       <span class="stars">${stars}</span>`;
     tile.addEventListener("click", () => openTrace(i));
     wrap.appendChild(tile);
@@ -721,13 +884,25 @@ function renderPips() {
 function onTraceComplete() {
   buzz([30, 40, 30]);
   const ch = DATA[currentCat][currentIdx];
+  const reward = rewardFor(ch);
+  const isNew = !store.hasSticker(ch.id);
   store.award(ch.id);
-  say(PRAISES[Math.floor(Math.random() * PRAISES.length)] + " You wrote " + ch.say + "!");
+  store.collect(ch.id);
+  say(PRAISES[Math.floor(Math.random() * PRAISES.length)] +
+      " You wrote " + ch.say + "! " + reward.phrase);
   renderPips();
-  setTimeout(showCelebrate, 550);
+  setTimeout(() => showCelebrate(reward, isNew), 550);
 }
-function showCelebrate() {
+function showCelebrate(reward, isNew) {
   celebrateStart = performance.now();
+  const disp = $("reward-display");
+  disp.textContent = reward.display;
+  disp.classList.toggle("many", [...reward.display].length > 4);
+  disp.style.animation = "none";
+  void disp.offsetWidth;               // restart the pop animation
+  disp.style.animation = "";
+  $("reward-phrase").textContent = reward.phrase;
+  $("new-sticker").style.display = isNew ? "" : "none";
   $("btn-next-cele").style.display =
     currentIdx < DATA[currentCat].length - 1 ? "" : "none";
   $("celebrate").classList.add("active");
@@ -877,6 +1052,30 @@ function drawTrace(now) {
     tctx.lineWidth = inkW;
     strokePath(tctx, r, engine.current, engine.progress);
     tctx.stroke();
+  }
+
+  // direction chevrons along the rest of the current stroke
+  if (!engine.completed && engine.current && !engine.current.dot) {
+    const s = engine.current;
+    const size = r.s * 0.022;
+    tctx.strokeStyle = "rgba(115,153,199,0.9)";
+    tctx.lineWidth = Math.max(2, r.s * 0.012);
+    tctx.lineCap = tctx.lineJoin = "round";
+    for (let d = Math.max(engine.progress, 0) + 0.08; d < s.length - 0.03; d += 0.11) {
+      const p = pointAt(s, d);
+      const a = pointAt(s, Math.min(d + 0.02, s.length));
+      const b = pointAt(s, Math.max(d - 0.02, 0));
+      let dx = a[0] - b[0], dy = a[1] - b[1];
+      const len = Math.max(Math.hypot(dx, dy), 1e-4);
+      dx /= len; dy /= len;
+      const nx = -dy, ny = dx;
+      const cx = mapX(r, p[0]), cy = mapY(r, p[1]);
+      tctx.beginPath();
+      tctx.moveTo(cx - dx * size * 0.4 + nx * size, cy - dy * size * 0.4 + ny * size);
+      tctx.lineTo(cx + dx * size, cy + dy * size);
+      tctx.lineTo(cx - dx * size * 0.4 - nx * size, cy - dy * size * 0.4 - ny * size);
+      tctx.stroke();
+    }
   }
 
   // start bubbles

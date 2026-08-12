@@ -37,6 +37,7 @@ private struct TracingSession: View {
     @EnvironmentObject private var progress: ProgressStore
     @StateObject private var engine: TraceEngine
     @State private var celebrating = false
+    @State private var newSticker = false
 
     init(category: TraceCategory, character: TraceCharacter,
          hasPrevious: Bool, hasNext: Bool,
@@ -69,6 +70,8 @@ private struct TracingSession: View {
 
             if celebrating {
                 CelebrationOverlay(
+                    reward: Rewards.reward(for: character),
+                    isNewSticker: newSticker,
                     hasNext: hasNext,
                     onAgain: {
                         celebrating = false
@@ -93,6 +96,7 @@ private struct TracingSession: View {
             engine.onCompleted = {
                 Haptics.success()
                 SpeechCoach.shared.praise(character)
+                newSticker = !progress.hasSticker(for: character.id)
                 progress.award(character.id)
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                     celebrating = true
@@ -166,37 +170,49 @@ private struct RoundControl: View {
     }
 }
 
-/// Confetti, a big star, and Again/Next buttons shown on completion.
+/// Confetti, the phonics sticker reward, and Again/Next buttons.
 private struct CelebrationOverlay: View {
+    let reward: Rewards.Reward
+    let isNewSticker: Bool
     let hasNext: Bool
     let onAgain: () -> Void
     let onNext: () -> Void
 
-    @State private var starScale: CGFloat = 0.2
+    @State private var rewardScale: CGFloat = 0.2
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.25).ignoresSafeArea()
+            Color.black.opacity(0.3).ignoresSafeArea()
             ConfettiView()
                 .allowsHitTesting(false)
                 .ignoresSafeArea()
 
-            VStack(spacing: 20) {
-                Image(systemName: "star.fill")
-                    .font(.system(size: 110))
-                    .foregroundStyle(.yellow)
-                    .shadow(color: .orange.opacity(0.6), radius: 12)
-                    .scaleEffect(starScale)
+            VStack(spacing: 18) {
+                Text(reward.display)
+                    .font(.system(size: reward.display.count > 4 ? 44 : 96))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                    .scaleEffect(rewardScale)
+                    .shadow(color: .yellow.opacity(0.5), radius: 14)
                     .onAppear {
                         withAnimation(.spring(response: 0.5, dampingFraction: 0.5)) {
-                            starScale = 1.0
+                            rewardScale = 1.0
                         }
                     }
 
-                Text("Great job!")
-                    .font(.system(size: 40, weight: .heavy, design: .rounded))
+                Text(reward.phrase)
+                    .font(.system(size: 30, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
                     .shadow(radius: 4)
+                    .padding(.horizontal, 20)
+
+                if isNewSticker {
+                    Label("New sticker collected!", systemImage: "sparkles")
+                        .font(.system(.headline, design: .rounded))
+                        .foregroundStyle(.yellow)
+                        .shadow(radius: 3)
+                }
 
                 HStack(spacing: 16) {
                     Button(action: onAgain) {

@@ -47,6 +47,13 @@ struct HomeView: View {
                             }
                         }
                         .padding(.horizontal, 20)
+
+                        NavigationLink {
+                            StickerBookView()
+                        } label: {
+                            stickerBookCard
+                        }
+                        .padding(.horizontal, 20)
                     }
                     .padding(.bottom, 32)
                 }
@@ -111,6 +118,34 @@ struct HomeView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
         .background(.white.opacity(0.7), in: Capsule())
+    }
+
+    private var stickerBookCard: some View {
+        HStack(spacing: 14) {
+            Text("🎁")
+                .font(.system(size: 40))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Sticker Book")
+                    .font(.system(.title3, design: .rounded).weight(.bold))
+                    .foregroundStyle(.white)
+                Text("\(progress.totalStickers) of 62 collected")
+                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.85))
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(.white.opacity(0.8))
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(
+            LinearGradient(colors: [Color(red: 0.98, green: 0.75, blue: 0.25),
+                                    Color(red: 0.95, green: 0.55, blue: 0.35)],
+                           startPoint: .leading, endPoint: .trailing),
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+        )
+        .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
     }
 
     private func cardEmoji(for category: TraceCategory) -> String {

@@ -120,6 +120,47 @@ struct TracingCanvasView: View {
                            style: StrokeStyle(lineWidth: inkWidth,
                                               lineCap: .round, lineJoin: .round))
             }
+
+            // Direction chevrons along the rest of the current stroke.
+            if !engine.completed, let stroke = engine.currentStroke, !stroke.isDot {
+                drawChevrons(ctx, stroke: stroke, from: engine.progress, rect: rect)
+            }
+        }
+    }
+
+    /// Small arrowheads spaced along the untraced part of the stroke,
+    /// pointing in the direction the finger should travel.
+    private func drawChevrons(_ ctx: GraphicsContext, stroke: TraceStroke,
+                              from progress: CGFloat, rect: CGRect) {
+        let spacing: CGFloat = 0.11
+        let size = rect.width * 0.022
+        var d = max(progress, 0) + 0.08
+        while d < stroke.length - 0.03 {
+            let p = stroke.point(at: d)
+            let ahead = stroke.point(at: min(d + 0.02, stroke.length))
+            let behind = stroke.point(at: max(d - 0.02, 0))
+            let dx = ahead.x - behind.x, dy = ahead.y - behind.y
+            let len = max(sqrt(dx * dx + dy * dy), 0.0001)
+            let tx = dx / len, ty = dy / len          // tangent
+            let nx = -ty, ny = tx                     // normal
+
+            let center = CGPoint(x: rect.minX + p.x * rect.width,
+                                 y: rect.minY + p.y * rect.height)
+            let tip = CGPoint(x: center.x + tx * size, y: center.y + ty * size)
+            let left = CGPoint(x: center.x - tx * size * 0.4 + nx * size,
+                               y: center.y - ty * size * 0.4 + ny * size)
+            let right = CGPoint(x: center.x - tx * size * 0.4 - nx * size,
+                                y: center.y - ty * size * 0.4 - ny * size)
+
+            var path = Path()
+            path.move(to: left)
+            path.addLine(to: tip)
+            path.addLine(to: right)
+            ctx.stroke(path,
+                       with: .color(Color(red: 0.45, green: 0.6, blue: 0.78).opacity(0.9)),
+                       style: StrokeStyle(lineWidth: rect.width * 0.012,
+                                          lineCap: .round, lineJoin: .round))
+            d += spacing
         }
     }
 

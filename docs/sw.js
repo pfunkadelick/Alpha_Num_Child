@@ -1,6 +1,6 @@
 // Cache-first service worker so the app works fully offline after the
 // first visit. Bump CACHE version when shipping changes.
-const CACHE = "abc123-v1";
+const CACHE = "abc123-v2";
 const ASSETS = [
   ".",
   "index.html",

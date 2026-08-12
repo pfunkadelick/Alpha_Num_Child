@@ -39,7 +39,8 @@ final class SpeechCoach {
     }
 
     func praise(_ character: TraceCharacter) {
-        say("\(praises.randomElement() ?? "Great job!") You wrote \(character.spokenName)!")
+        let phrase = Rewards.reward(for: character).phrase
+        say("\(praises.randomElement() ?? "Great job!") You wrote \(character.spokenName)! \(phrase)")
     }
 
     func stop() {

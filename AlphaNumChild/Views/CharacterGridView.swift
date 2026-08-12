@@ -20,7 +20,9 @@ struct CharacterGridView: View {
                         } label: {
                             CharacterTile(character: character,
                                           colors: category.gradient,
-                                          stars: progress.stars(for: character.id))
+                                          stars: progress.stars(for: character.id),
+                                          sticker: progress.hasSticker(for: character.id)
+                                              ? Rewards.reward(for: character).sticker : nil)
                         }
                     }
                 }
@@ -36,6 +38,7 @@ private struct CharacterTile: View {
     let character: TraceCharacter
     let colors: [Color]
     let stars: Int
+    let sticker: String?
 
     var body: some View {
         VStack(spacing: 6) {
@@ -57,6 +60,13 @@ private struct CharacterTile: View {
         .frame(maxWidth: .infinity)
         .frame(height: 96)
         .background(.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(alignment: .topTrailing) {
+            if let sticker {
+                Text(sticker)
+                    .font(.system(size: 16))
+                    .padding(6)
+            }
+        }
         .shadow(color: .black.opacity(0.08), radius: 5, y: 3)
     }
 }

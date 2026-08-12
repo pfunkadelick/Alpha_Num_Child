@@ -15,8 +15,13 @@ numbers by tracing them with a finger — inspired by LeapFrog's
   each with proper handwriting stroke order.
 - **Watch, then trace**: an animated pencil ✏️ demonstrates each character,
   then the child traces the gray track with a finger. Numbered green
-  bubbles show where each stroke starts, and each stroke fills in with a
-  different crayon color.
+  bubbles show where each stroke starts, direction arrows point the way
+  along the stroke, and each stroke fills in with a different crayon color.
+- **Phonics sticker rewards**: finishing a character earns a collectible
+  sticker tied to its sound — "A is for apple 🍎", "B is for bear 🐻" —
+  spoken aloud to reinforce letter sounds. Numbers earn counted sets
+  ("Three apples 🍎🍎🍎"). Collected stickers live in a Sticker Book on
+  the home screen.
 - **Forgiving for little fingers**: generous touch tolerance, but the
   tracer still requires following the path — no skipping ahead or
   scribbling across the letter.
