@@ -1,0 +1,15 @@
+{
+  "name": "ABC & 123",
+  "short_name": "ABC & 123",
+  "description": "Learn to write letters and numbers by tracing",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#8cc6f7",
+  "theme_color": "#8cc6f7",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
