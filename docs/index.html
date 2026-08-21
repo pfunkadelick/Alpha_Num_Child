@@ -698,19 +698,29 @@ const sound = {
 // downloaded later (iOS: Settings > Accessibility > Spoken Content >
 // Voices), the voiceschanged event re-picks automatically.
 let coachVoice = null;
+// Known warm female voices (Apple, Google, Microsoft), best first.
+const FEMALE_VOICES = ["ava", "samantha", "zoe", "allison", "susan", "nicky",
+                       "serena", "kate", "karen", "moira", "tessa", "martha",
+                       "fiona", "veena", "victoria", "kathy", "aria", "jenny",
+                       "michelle", "libby", "sonia", "natasha",
+                       "google us english", "google uk english female"];
+// Known male voices — never picked while any female English voice exists.
+const MALE_VOICES = ["aaron", "alex", "arthur", "daniel", "fred", "gordon",
+                     "reed", "rocko", "eddy", "albert", "bruce", "junior",
+                     "ralph", "grandpa", "oliver", "thomas", "guy", "david",
+                     "mark", "james", "ryan", "google uk english male"];
 function pickVoice() {
-  const prefer = ["ava", "samantha", "zoe", "allison", "susan", "nicky",
-                  "serena", "kate", "karen", "moira", "tessa", "google us english"];
-  let best = null, bestScore = -1;
+  let best = null, bestScore = -Infinity;
   for (const v of speechSynthesis.getVoices()) {
     if (!v.lang || !v.lang.toLowerCase().startsWith("en")) continue;
     const name = v.name.toLowerCase();
     let s = 0;
-    if (name.includes("premium")) s += 40;
-    if (name.includes("enhanced")) s += 30;
-    if (name.includes("natural")) s += 30;
-    const i = prefer.findIndex(p => name.includes(p));
-    if (i >= 0) s += (prefer.length - i) * 2;
+    const fi = FEMALE_VOICES.findIndex(p => name.includes(p));
+    if (fi >= 0) s += 30 + (FEMALE_VOICES.length - fi);
+    if (MALE_VOICES.some(p => name.includes(p))) s -= 60;
+    if (name.includes("premium")) s += 15;
+    if (name.includes("enhanced")) s += 10;
+    if (name.includes("natural")) s += 8;
     if (v.lang.toLowerCase().startsWith("en-us")) s += 4;
     if (v.localService) s += 1;
     if (s > bestScore) { bestScore = s; best = v; }
@@ -720,14 +730,20 @@ function pickVoice() {
 if ("speechSynthesis" in window) {
   pickVoice();
   speechSynthesis.onvoiceschanged = pickVoice;
+  // Safari often loads the voice list only after a user gesture.
+  document.addEventListener("pointerdown", pickVoice, { once: true });
 }
 
 function say(text) {
   if (!store.soundOn || !("speechSynthesis" in window)) return;
   speechSynthesis.cancel();
+  if (!coachVoice) pickVoice();   // the voice list may have loaded late
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "en-US";
-  if (coachVoice) u.voice = coachVoice;
+  if (coachVoice) {
+    u.voice = coachVoice;
+    u.lang = coachVoice.lang;
+  }
   // Near-natural pitch and a soothing, unhurried pace — a big pitch
   // boost is what makes synthesized speech sound robotic.
   u.rate = 0.92;

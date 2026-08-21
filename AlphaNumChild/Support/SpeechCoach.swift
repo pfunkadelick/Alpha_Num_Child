@@ -41,19 +41,24 @@ final class SpeechCoach {
     private static func warmestVoice() -> AVSpeechSynthesisVoice? {
         let preferredNames = ["ava", "samantha", "zoe", "allison", "susan",
                               "nicky", "serena", "kate", "karen", "moira", "tessa"]
+        let maleNames = ["aaron", "alex", "arthur", "daniel", "fred", "gordon",
+                         "reed", "rocko", "eddy", "albert", "bruce", "junior",
+                         "ralph", "grandpa", "oliver", "thomas"]
         let candidates = AVSpeechSynthesisVoice.speechVoices()
             .filter { $0.language.hasPrefix("en") }
 
         func score(_ v: AVSpeechSynthesisVoice) -> Int {
             var s = 0
+            let name = v.name.lowercased()
             switch v.quality {
             case .premium: s += 40
             case .enhanced: s += 30
             default: break
             }
-            if v.gender == .female { s += 8 }
-            if let i = preferredNames.firstIndex(where: { v.name.lowercased().contains($0) }) {
-                s += (preferredNames.count - i) * 2
+            if v.gender == .female { s += 20 }
+            if v.gender == .male || maleNames.contains(where: { name.contains($0) }) { s -= 60 }
+            if let i = preferredNames.firstIndex(where: { name.contains($0) }) {
+                s += (preferredNames.count - i) * 2 + 10
             }
             if v.language == "en-US" { s += 4 }
             return s
