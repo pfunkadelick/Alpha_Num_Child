@@ -614,6 +614,24 @@ const store = {
 const sound = {
   ctx: null,
   scale: [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5], // C major pentatonic
+  // A looping silent <audio> element promotes the page to media-playback
+  // audio on iOS, so the guidance tones play even with the silent switch
+  // on (speech already does; without this, only the tones went missing).
+  silentWavURI() {
+    const rate = 8000, n = rate / 2;
+    const buf = new ArrayBuffer(44 + n * 2);
+    const v = new DataView(buf);
+    const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVE");
+    w(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    w(36, "data"); v.setUint32(40, n * 2, true);
+    let bin = "";
+    const bytes = new Uint8Array(buf);
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return "data:audio/wav;base64," + btoa(bin);
+  },
   ensure() {
     if (!store.soundOn) return false;
     if (!this.ctx) {
@@ -621,6 +639,12 @@ const sound = {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return false;
         this.ctx = new AC();
+
+        this.unmute = new Audio(this.silentWavURI());
+        this.unmute.loop = true;
+        this.unmute.setAttribute("playsinline", "");
+        const played = this.unmute.play();
+        if (played && played.catch) played.catch(() => {});
 
         this.goodOsc = this.ctx.createOscillator();
         this.goodOsc.type = "sine";
@@ -651,8 +675,12 @@ const sound = {
         return false;
       }
     }
-    if (this.ctx.state === "suspended") {
+    if (this.ctx.state !== "running") {   // suspended or interrupted (iOS)
       const p = this.ctx.resume();
+      if (p && p.catch) p.catch(() => {});
+    }
+    if (this.unmute && this.unmute.paused) {
+      const p = this.unmute.play();
       if (p && p.catch) p.catch(() => {});
     }
     return true;
@@ -666,12 +694,12 @@ const sound = {
       const idx = Math.max(0, Math.min(this.scale.length - 1,
                                        Math.floor(ratio * this.scale.length)));
       this.goodOsc.frequency.setTargetAtTime(this.scale[idx], t, 0.02);
-      this.goodGain.gain.setTargetAtTime(0.1, t, 0.03);
+      this.goodGain.gain.setTargetAtTime(0.16, t, 0.03);
       this.warnGain.gain.setTargetAtTime(0, t, 0.05);
     } else {
       const excess = Math.min(1, (d - tol) / 0.3);
       this.goodGain.gain.setTargetAtTime(0, t, 0.05);
-      this.warnGain.gain.setTargetAtTime(0.03 + 0.17 * excess, t, 0.03);
+      this.warnGain.gain.setTargetAtTime(0.05 + 0.22 * excess, t, 0.03);
     }
   },
   release() {
@@ -686,7 +714,7 @@ const sound = {
     this.warnGain.gain.setTargetAtTime(0, t, 0.02);
     this.goodOsc.frequency.setValueAtTime(783.99, t);
     this.goodOsc.frequency.setValueAtTime(1046.5, t + 0.09);
-    this.goodGain.gain.setValueAtTime(0.14, t);
+    this.goodGain.gain.setValueAtTime(0.2, t);
     this.goodGain.gain.setTargetAtTime(0, t + 0.18, 0.08);
   },
 };
@@ -738,17 +766,24 @@ function say(text) {
   if (!store.soundOn || !("speechSynthesis" in window)) return;
   speechSynthesis.cancel();
   if (!coachVoice) pickVoice();   // the voice list may have loaded late
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "en-US";
-  if (coachVoice) {
-    u.voice = coachVoice;
-    u.lang = coachVoice.lang;
+  // Queue one utterance per sentence, so "You wrote C! C is for cat!"
+  // gets a natural breath between the sentences.
+  const sentences = text.match(/[^.!?]+[.!?]*/g) || [text];
+  for (const sentence of sentences) {
+    const trimmed = sentence.trim();
+    if (!trimmed) continue;
+    const u = new SpeechSynthesisUtterance(trimmed);
+    u.lang = "en-US";
+    if (coachVoice) {
+      u.voice = coachVoice;
+      u.lang = coachVoice.lang;
+    }
+    // Near-natural pitch and a soothing, unhurried pace — a big pitch
+    // boost is what makes synthesized speech sound robotic.
+    u.rate = 0.92;
+    u.pitch = 1.02;
+    speechSynthesis.speak(u);
   }
-  // Near-natural pitch and a soothing, unhurried pace — a big pitch
-  // boost is what makes synthesized speech sound robotic.
-  u.rate = 0.92;
-  u.pitch = 1.02;
-  speechSynthesis.speak(u);
 }
 function buzz(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
 

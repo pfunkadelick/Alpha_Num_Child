@@ -75,15 +75,36 @@ final class SpeechCoach {
     func say(_ text: String) {
         guard enabled else { return }
         synthesizer.stopSpeaking(at: .immediate)
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = voice
-        // Gentle, motherly delivery: near-natural pitch (a big pitch boost
-        // is what makes synthesized speech sound robotic) and an unhurried,
-        // soothing rate for little ears.
-        utterance.rate = 0.45
-        utterance.pitchMultiplier = 1.02
-        utterance.postUtteranceDelay = 0.15
-        synthesizer.speak(utterance)
+        // Speak sentence by sentence with a breath between each, so
+        // "You wrote C! C is for cat!" doesn't run together.
+        for sentence in Self.sentences(in: text) {
+            let utterance = AVSpeechUtterance(string: sentence)
+            utterance.voice = voice
+            // Gentle, motherly delivery: near-natural pitch (a big pitch
+            // boost is what makes synthesized speech sound robotic) and an
+            // unhurried, soothing rate for little ears.
+            utterance.rate = 0.45
+            utterance.pitchMultiplier = 1.02
+            utterance.preUtteranceDelay = 0.05
+            utterance.postUtteranceDelay = 0.35
+            synthesizer.speak(utterance)
+        }
+    }
+
+    private static func sentences(in text: String) -> [String] {
+        var result: [String] = []
+        var current = ""
+        for ch in text {
+            current.append(ch)
+            if ".!?".contains(ch) {
+                let sentence = current.trimmingCharacters(in: .whitespaces)
+                if !sentence.isEmpty { result.append(sentence) }
+                current = ""
+            }
+        }
+        let rest = current.trimmingCharacters(in: .whitespaces)
+        if !rest.isEmpty { result.append(rest) }
+        return result.isEmpty ? [text] : result
     }
 
     func announce(_ character: TraceCharacter) {

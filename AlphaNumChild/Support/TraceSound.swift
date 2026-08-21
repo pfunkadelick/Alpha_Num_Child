@@ -36,7 +36,10 @@ final class TraceSound {
     private func configureIfNeeded() {
         guard !configured else { return }
         configured = true
-        try? AVAudioSession.sharedInstance().setCategory(.ambient, options: .mixWithOthers)
+        // .playback (not .ambient) so the guidance tones still play when
+        // the phone's silent switch is on — this is a learning app, and
+        // the in-app mute button is the intended way to silence it.
+        try? AVAudioSession.sharedInstance().setCategory(.playback, options: .mixWithOthers)
         try? AVAudioSession.sharedInstance().setActive(true)
 
         let sampleRate: Float = 44100
