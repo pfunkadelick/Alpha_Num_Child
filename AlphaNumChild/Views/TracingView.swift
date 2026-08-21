@@ -87,12 +87,20 @@ private struct TracingSession: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text(character.glyph)
-                    .font(.system(size: 30, weight: .heavy, design: .rounded))
+                    .font(.system(size: character.glyph.count > 1 ? 26 : 30,
+                                  weight: .heavy, design: .rounded))
                     .foregroundStyle(category.gradient[0])
             }
         }
         .onAppear {
-            engine.onStrokeCompleted = { Haptics.strokeDone() }
+            engine.onStrokeCompleted = {
+                Haptics.strokeDone()
+                // In word mode, name each letter as it's completed.
+                if let letterIndex = character.letterEnds.firstIndex(of: engine.strokeIndex) {
+                    let letter = Array(character.glyph)[letterIndex]
+                    SpeechCoach.shared.say("\(String(letter).uppercased())!")
+                }
+            }
             engine.onCompleted = {
                 Haptics.success()
                 SpeechCoach.shared.praise(character)

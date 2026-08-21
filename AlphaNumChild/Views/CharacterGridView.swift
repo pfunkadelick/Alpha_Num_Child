@@ -43,7 +43,8 @@ private struct CharacterTile: View {
     var body: some View {
         VStack(spacing: 6) {
             Text(character.glyph)
-                .font(.system(size: 46, weight: .heavy, design: .rounded))
+                .font(.system(size: character.glyph.count > 1 ? 24 : 46,
+                              weight: .heavy, design: .rounded))
                 .foregroundStyle(
                     LinearGradient(colors: colors,
                                    startPoint: .top, endPoint: .bottom)

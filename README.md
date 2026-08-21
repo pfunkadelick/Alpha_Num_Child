@@ -13,6 +13,10 @@ numbers by tracing them with a finger — inspired by LeapFrog's
 
 - **Big Letters (A–Z)**, **Small Letters (a–z)**, and **Numbers (0–9)**,
   each with proper handwriting stroke order.
+- **Little Words**: 20 simple two- and three-letter words (up, go, cat,
+  dog, sun...) traced letter by letter. The voice names each finished
+  letter, then spells the whole word — "C, A, T spells cat!" — and the
+  word's picture joins the sticker book.
 - **Watch, then trace**: an animated pencil ✏️ demonstrates each character,
   then the child traces the gray track with a finger. Numbered green
   bubbles show where each stroke starts, direction arrows point the way

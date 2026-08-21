@@ -19,19 +19,32 @@ final class TraceEngine: ObservableObject {
     private(set) var demoBaseIndex = 0
 
     // Tolerances are generous on purpose: little fingers are wobbly.
-    private let tolerance: CGFloat = 0.12
-    private let startTolerance: CGFloat = 0.16
-    private let maxAdvance: CGFloat = 0.17
+    // Everything scales with the character's toleranceFactor, so the
+    // smaller letters inside words get proportionally tighter values.
+    private let tolerance: CGFloat
+    private let startTolerance: CGFloat
+    private let maxAdvance: CGFloat
+    private let finishEpsilon: CGFloat
+    private let backtrack: CGFloat
+    private let liftForgiveness: CGFloat
 
     private var strokeStarted = false
     private var demoTimer: Timer?
-    private let demoSpeed: CGFloat = 0.55   // unit lengths per second
+    private let demoSpeed: CGFloat   // unit lengths per second
 
     var onStrokeCompleted: (() -> Void)?
     var onCompleted: (() -> Void)?
 
     init(character: TraceCharacter) {
         self.character = character
+        let f = character.toleranceFactor
+        tolerance = 0.12 * f
+        startTolerance = 0.16 * f
+        maxAdvance = 0.17 * f
+        finishEpsilon = 0.035 * f
+        backtrack = 0.06 * f
+        liftForgiveness = 0.1 * f
+        demoSpeed = 0.55 * max(f, 0.6)
     }
 
     deinit {
@@ -68,7 +81,7 @@ final class TraceEngine: ObservableObject {
         }
 
         if let hit = project(p, on: stroke,
-                             windowStart: max(0, progress - 0.06),
+                             windowStart: max(0, progress - backtrack),
                              windowEnd: progress + maxAdvance) {
             let ratio = stroke.length > 0 ? min(1, progress / stroke.length) : 0
             TraceSound.shared.update(distance: hit.d, tolerance: tolerance,
@@ -78,7 +91,7 @@ final class TraceEngine: ObservableObject {
             }
         }
 
-        if progress >= stroke.length - 0.035 {
+        if progress >= stroke.length - finishEpsilon {
             finishCurrentStroke()
         }
     }
@@ -88,7 +101,7 @@ final class TraceEngine: ObservableObject {
         guard !completed, let stroke = currentStroke, strokeStarted else { return }
         // Forgiving finish: lifting the finger very near the end counts.
         let remaining = stroke.length - progress
-        if remaining < max(0.1, stroke.length * 0.12) {
+        if remaining < max(liftForgiveness, stroke.length * 0.12) {
             finishCurrentStroke()
         }
     }

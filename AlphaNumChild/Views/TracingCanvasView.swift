@@ -30,10 +30,11 @@ struct TracingCanvasView: View {
                 startBubbles(rect: rect)
 
                 if let pencil = engine.demoPencilPoint {
+                    let pencilScale = max(engine.character.toleranceFactor, 0.6)
                     Text("✏️")
-                        .font(.system(size: rect.width * 0.16))
-                        .position(x: rect.minX + pencil.x * rect.width + rect.width * 0.05,
-                                  y: rect.minY + pencil.y * rect.height - rect.height * 0.05)
+                        .font(.system(size: rect.width * 0.16 * pencilScale))
+                        .position(x: rect.minX + pencil.x * rect.width + rect.width * 0.05 * pencilScale,
+                                  y: rect.minY + pencil.y * rect.height - rect.height * 0.05 * pencilScale)
                         .allowsHitTesting(false)
                 }
             }
@@ -50,12 +51,15 @@ struct TracingCanvasView: View {
         }
     }
 
+    /// Scales stroke thicknesses down for words, whose letters are smaller.
+    private var f: CGFloat { engine.character.toleranceFactor }
+
     private func canvas(rect: CGRect) -> some View {
         Canvas { ctx, _ in
             drawGuideLines(ctx, rect: rect)
 
-            let trackWidth = rect.width * 0.13
-            let inkWidth = rect.width * 0.105
+            let trackWidth = rect.width * 0.13 * f
+            let inkWidth = rect.width * 0.105 * f
 
             // Gray track for every stroke.
             for stroke in engine.strokes {
@@ -132,9 +136,9 @@ struct TracingCanvasView: View {
     /// pointing in the direction the finger should travel.
     private func drawChevrons(_ ctx: GraphicsContext, stroke: TraceStroke,
                               from progress: CGFloat, rect: CGRect) {
-        let spacing: CGFloat = 0.11
-        let size = rect.width * 0.022
-        var d = max(progress, 0) + 0.08
+        let spacing: CGFloat = 0.11 * f
+        let size = rect.width * 0.022 * f
+        var d = max(progress, 0) + 0.08 * f
         while d < stroke.length - 0.03 {
             let p = stroke.point(at: d)
             let ahead = stroke.point(at: min(d + 0.02, stroke.length))
@@ -158,7 +162,7 @@ struct TracingCanvasView: View {
             path.addLine(to: right)
             ctx.stroke(path,
                        with: .color(Color(red: 0.45, green: 0.6, blue: 0.78).opacity(0.9)),
-                       style: StrokeStyle(lineWidth: rect.width * 0.012,
+                       style: StrokeStyle(lineWidth: rect.width * 0.012 * f,
                                           lineCap: .round, lineJoin: .round))
             d += spacing
         }
@@ -166,7 +170,8 @@ struct TracingCanvasView: View {
 
     private func drawGuideLines(_ ctx: GraphicsContext, rect: CGRect) {
         let lineColor = Color(red: 0.6, green: 0.75, blue: 0.9)
-        for (i, y) in category.guideLines.enumerated() {
+        let guides = engine.character.guideLines ?? category.guideLines
+        for (i, y) in guides.enumerated() {
             var p = Path()
             let yy = rect.minY + y * rect.height
             p.move(to: CGPoint(x: rect.minX - rect.width * 0.04, y: yy))
@@ -194,8 +199,9 @@ struct TracingCanvasView: View {
             if !engine.completed, i >= engine.strokeIndex {
                 let isCurrent = i == engine.strokeIndex
                 let anchor = stroke.isDot ? stroke.center : stroke.start
+                let bubbleScale = max(engine.character.toleranceFactor, 0.55)
                 StartBubble(number: i + 1, isCurrent: isCurrent,
-                            size: rect.width * (isCurrent ? 0.09 : 0.07))
+                            size: rect.width * (isCurrent ? 0.09 : 0.07) * bubbleScale)
                     .position(x: rect.minX + anchor.x * rect.width,
                               y: rect.minY + anchor.y * rect.height)
                     .allowsHitTesting(false)

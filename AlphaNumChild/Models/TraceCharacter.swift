@@ -78,25 +78,38 @@ struct TraceStroke {
     }
 }
 
-/// A traceable character: a letter or number with ordered strokes.
+/// A traceable character: a letter, number, or small word with ordered strokes.
 struct TraceCharacter: Identifiable, Hashable {
     let id: String
     let glyph: String
     let spokenName: String
     let strokes: [TraceStroke]
+    /// Per-character handwriting guide lines; nil = use the category's.
+    let guideLines: [CGFloat]?
+    /// For words: stroke counts at which each letter (except the last)
+    /// is finished, so the coach can name letters as they're completed.
+    let letterEnds: [Int]
+    /// Scales tracing tolerances and track thickness; < 1 for words,
+    /// whose letters are drawn smaller than a full-size character.
+    let toleranceFactor: CGFloat
 
     init(id: String, glyph: String, spokenName: String, strokes: [[CGPoint]]) {
-        self.id = id
-        self.glyph = glyph
-        self.spokenName = spokenName
-        self.strokes = strokes.map { TraceStroke($0) }
+        self.init(id: id, glyph: glyph, spokenName: spokenName,
+                  traceStrokes: strokes.map { TraceStroke($0) })
     }
 
-    init(id: String, glyph: String, spokenName: String, traceStrokes: [TraceStroke]) {
+    init(id: String, glyph: String, spokenName: String,
+         traceStrokes: [TraceStroke],
+         guideLines: [CGFloat]? = nil,
+         letterEnds: [Int] = [],
+         toleranceFactor: CGFloat = 1) {
         self.id = id
         self.glyph = glyph
         self.spokenName = spokenName
         self.strokes = traceStrokes
+        self.guideLines = guideLines
+        self.letterEnds = letterEnds
+        self.toleranceFactor = toleranceFactor
     }
 
     static func == (lhs: TraceCharacter, rhs: TraceCharacter) -> Bool { lhs.id == rhs.id }
@@ -108,6 +121,7 @@ enum TraceCategory: String, CaseIterable, Identifiable {
     case uppercase
     case lowercase
     case numbers
+    case words
 
     var id: String { rawValue }
 
@@ -116,6 +130,7 @@ enum TraceCategory: String, CaseIterable, Identifiable {
         case .uppercase: return "Big Letters"
         case .lowercase: return "Small Letters"
         case .numbers: return "Numbers"
+        case .words: return "Little Words"
         }
     }
 
@@ -124,6 +139,7 @@ enum TraceCategory: String, CaseIterable, Identifiable {
         case .uppercase: return "ABC"
         case .lowercase: return "abc"
         case .numbers: return "123"
+        case .words: return "cat · dog"
         }
     }
 
@@ -132,15 +148,17 @@ enum TraceCategory: String, CaseIterable, Identifiable {
         case .uppercase: return CharacterLibrary.uppercase
         case .lowercase: return CharacterLibrary.lowercase
         case .numbers: return CharacterLibrary.numbers
+        case .words: return WordLibrary.words
         }
     }
 
     /// Horizontal handwriting guide lines (unit-space y positions).
     /// The middle value is drawn dashed, like handwriting paper.
+    /// Words carry their own per-word guide lines instead.
     var guideLines: [CGFloat] {
         switch self {
         case .uppercase, .numbers: return [0.15, 0.5, 0.85]
-        case .lowercase: return [0.15, 0.42, 0.78]
+        case .lowercase, .words: return [0.15, 0.42, 0.78]
         }
     }
 
@@ -152,6 +170,8 @@ enum TraceCategory: String, CaseIterable, Identifiable {
                                  Color(red: 0.16, green: 0.62, blue: 0.74)]
         case .numbers: return [Color(red: 0.42, green: 0.5, blue: 0.95),
                                Color(red: 0.66, green: 0.42, blue: 0.94)]
+        case .words: return [Color(red: 0.95, green: 0.68, blue: 0.22),
+                             Color(red: 0.9, green: 0.42, blue: 0.5)]
         }
     }
 }

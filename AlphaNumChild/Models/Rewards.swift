@@ -40,6 +40,14 @@ enum Rewards {
     ]
 
     static func reward(for character: TraceCharacter) -> Reward {
+        if character.id.hasPrefix("W-") {
+            let word = character.glyph
+            let emoji = WordLibrary.emoji(for: word)
+            // Commas give the voice a small pause between letter names.
+            let spelling = word.uppercased().map(String.init).joined(separator: ", ")
+            return Reward(display: emoji, sticker: emoji,
+                          phrase: "\(spelling), spells \(word)!")
+        }
         if character.id.hasPrefix("N-"), let n = Int(character.glyph),
            n >= 0, n < numberWords.count {
             let entry = numberWords[n]

@@ -36,15 +36,16 @@ struct HomeView: View {
                                              colors: category.gradient)
                                 }
                             }
-                            NavigationLink {
-                                DoodleView()
-                            } label: {
-                                HomeCard(emoji: "🖍️",
-                                         title: "Doodle",
-                                         subtitle: "Free draw",
-                                         colors: [Color(red: 0.98, green: 0.66, blue: 0.37),
-                                                  Color(red: 0.96, green: 0.47, blue: 0.62)])
-                            }
+                        }
+                        .padding(.horizontal, 20)
+
+                        NavigationLink {
+                            DoodleView()
+                        } label: {
+                            wideCard(emoji: "🖍️", title: "Doodle",
+                                     subtitle: "Free drawing pad",
+                                     colors: [Color(red: 0.98, green: 0.66, blue: 0.37),
+                                              Color(red: 0.96, green: 0.47, blue: 0.62)])
                         }
                         .padding(.horizontal, 20)
 
@@ -121,14 +122,23 @@ struct HomeView: View {
     }
 
     private var stickerBookCard: some View {
+        let total = TraceCategory.allCases.reduce(0) { $0 + $1.characters.count }
+        return wideCard(emoji: "🎁", title: "Sticker Book",
+                        subtitle: "\(progress.totalStickers) of \(total) collected",
+                        colors: [Color(red: 0.98, green: 0.75, blue: 0.25),
+                                 Color(red: 0.95, green: 0.55, blue: 0.35)])
+    }
+
+    private func wideCard(emoji: String, title: String, subtitle: String,
+                          colors: [Color]) -> some View {
         HStack(spacing: 14) {
-            Text("🎁")
+            Text(emoji)
                 .font(.system(size: 40))
             VStack(alignment: .leading, spacing: 2) {
-                Text("Sticker Book")
+                Text(title)
                     .font(.system(.title3, design: .rounded).weight(.bold))
                     .foregroundStyle(.white)
-                Text("\(progress.totalStickers) of 62 collected")
+                Text(subtitle)
                     .font(.system(.subheadline, design: .rounded).weight(.semibold))
                     .foregroundStyle(.white.opacity(0.85))
             }
@@ -140,8 +150,7 @@ struct HomeView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
         .background(
-            LinearGradient(colors: [Color(red: 0.98, green: 0.75, blue: 0.25),
-                                    Color(red: 0.95, green: 0.55, blue: 0.35)],
+            LinearGradient(colors: colors,
                            startPoint: .leading, endPoint: .trailing),
             in: RoundedRectangle(cornerRadius: 24, style: .continuous)
         )
@@ -153,6 +162,7 @@ struct HomeView: View {
         case .uppercase: return "🅰️"
         case .lowercase: return "✍️"
         case .numbers: return "🔢"
+        case .words: return "📖"
         }
     }
 
