@@ -21,9 +21,14 @@ final class SpeechCoach {
     private lazy var voice: AVSpeechSynthesisVoice? = Self.warmestVoice()
 
     private let praises = [
-        "Great job!", "You did it!", "Beautiful writing!",
-        "I'm so proud of you!", "That was wonderful!",
-        "You're getting so good at this!", "Amazing work!", "Hooray for you!",
+        "Wonderful, sweetheart!", "You did it, sweetie!", "Beautiful writing!",
+        "I'm so proud of you!", "That was lovely!", "You're doing so well!",
+        "Great job, my dear!", "Hooray, sweetie!",
+    ]
+
+    private let invitations = [
+        "Let's trace %@ together!", "Can you trace %@ with me?",
+        "Time to trace %@, sweetie!", "Here comes %@. Ready?",
     ]
 
     private init() {
@@ -67,17 +72,18 @@ final class SpeechCoach {
         synthesizer.stopSpeaking(at: .immediate)
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = voice
-        // Gentle, natural delivery: near-default pitch (a big pitch boost
-        // is what makes synthesized speech sound robotic) and a slightly
-        // unhurried rate for little ears.
-        utterance.rate = 0.46
-        utterance.pitchMultiplier = 1.05
-        utterance.postUtteranceDelay = 0.1
+        // Gentle, motherly delivery: near-natural pitch (a big pitch boost
+        // is what makes synthesized speech sound robotic) and an unhurried,
+        // soothing rate for little ears.
+        utterance.rate = 0.45
+        utterance.pitchMultiplier = 1.02
+        utterance.postUtteranceDelay = 0.15
         synthesizer.speak(utterance)
     }
 
     func announce(_ character: TraceCharacter) {
-        say("Let's trace \(character.spokenName)!")
+        let template = invitations.randomElement() ?? "Let's trace %@ together!"
+        say(String(format: template, character.spokenName))
     }
 
     func praise(_ character: TraceCharacter) {

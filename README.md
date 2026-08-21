@@ -25,6 +25,12 @@ numbers by tracing them with a finger — inspired by LeapFrog's
 - **Forgiving for little fingers**: generous touch tolerance, but the
   tracer still requires following the path — no skipping ahead or
   scribbling across the letter.
+- **Audio guidance while tracing** (an audio "heat map"): on the line, a
+  warm tone climbs a little melody as the stroke progresses; off the
+  line, a soft wobble grows louder the farther the finger strays and
+  fades away as it comes back, gently steering the child to the track.
+  Each finished stroke gets a bright chime. All synthesized live — no
+  audio files.
 - **Rewards**: haptics while tracing, confetti + a big star on completion,
   and a friendly voice (system speech, no recordings needed) that
   announces each character and praises the child by name of the letter.

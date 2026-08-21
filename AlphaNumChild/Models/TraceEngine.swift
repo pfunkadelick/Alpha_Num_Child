@@ -50,22 +50,32 @@ final class TraceEngine: ObservableObject {
         stopDemo()
 
         if stroke.isDot {
-            if distance(p, stroke.center) < startTolerance {
+            let d = distance(p, stroke.center)
+            TraceSound.shared.update(distance: d, tolerance: startTolerance,
+                                     progressRatio: 0.5)
+            if d < startTolerance {
                 finishCurrentStroke()
             }
             return
         }
 
         if !strokeStarted {
-            guard distance(p, stroke.start) < startTolerance else { return }
+            let d = distance(p, stroke.start)
+            TraceSound.shared.update(distance: d, tolerance: startTolerance,
+                                     progressRatio: 0)
+            guard d < startTolerance else { return }
             strokeStarted = true
         }
 
-        if let s = project(p, on: stroke,
-                           windowStart: max(0, progress - 0.06),
-                           windowEnd: progress + maxAdvance),
-           s > progress {
-            progress = s
+        if let hit = project(p, on: stroke,
+                             windowStart: max(0, progress - 0.06),
+                             windowEnd: progress + maxAdvance) {
+            let ratio = stroke.length > 0 ? min(1, progress / stroke.length) : 0
+            TraceSound.shared.update(distance: hit.d, tolerance: tolerance,
+                                     progressRatio: ratio)
+            if hit.d <= tolerance, hit.s > progress {
+                progress = hit.s
+            }
         }
 
         if progress >= stroke.length - 0.035 {
@@ -74,6 +84,7 @@ final class TraceEngine: ObservableObject {
     }
 
     func touchEnded() {
+        TraceSound.shared.touchEnded()
         guard !completed, let stroke = currentStroke, strokeStarted else { return }
         // Forgiving finish: lifting the finger very near the end counts.
         let remaining = stroke.length - progress
@@ -94,6 +105,7 @@ final class TraceEngine: ObservableObject {
         progress = 0
         strokeStarted = false
         strokeIndex += 1
+        TraceSound.shared.strokeChime()
         if strokeIndex >= strokes.count {
             completed = true
             onCompleted?()
@@ -104,9 +116,10 @@ final class TraceEngine: ObservableObject {
 
     /// Closest-point projection of `p` onto the stroke, limited to a window
     /// of arc length so the child can't skip ahead or cut corners.
-    /// Returns the arc-length position, or nil if the finger is off the path.
+    /// Returns the arc-length position and the distance to the path (the
+    /// caller applies the tolerance; the distance also drives audio guidance).
     private func project(_ p: CGPoint, on stroke: TraceStroke,
-                         windowStart: CGFloat, windowEnd: CGFloat) -> CGFloat? {
+                         windowStart: CGFloat, windowEnd: CGFloat) -> (s: CGFloat, d: CGFloat)? {
         var best: (s: CGFloat, d: CGFloat)?
         let pts = stroke.points
         for i in 0..<(pts.count - 1) {
@@ -124,11 +137,11 @@ final class TraceEngine: ObservableObject {
 
             let q = CGPoint(x: a.x + abx * t, y: a.y + aby * t)
             let d = distance(p, q)
-            if d <= tolerance, best == nil || d < best!.d {
+            if best == nil || d < best!.d {
                 best = (segStart + segLen * t, d)
             }
         }
-        return best?.s
+        return best
     }
 
     private func distance(_ a: CGPoint, _ b: CGPoint) -> CGFloat {

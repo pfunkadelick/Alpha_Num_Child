@@ -537,9 +537,11 @@ const CATEGORIES = {
   numbers:   { title: "Numbers", guides: [0.15, 0.5, 0.85] },
 };
 const CRAYONS = ["#f2554f", "#4d8cf2", "#4ab877", "#f99933", "#a86bf0", "#f073a6"];
-const PRAISES = ["Great job!", "You did it!", "Beautiful writing!",
-                 "I'm so proud of you!", "That was wonderful!",
-                 "You're getting so good at this!", "Amazing work!", "Hooray for you!"];
+const PRAISES = ["Wonderful, sweetheart!", "You did it, sweetie!", "Beautiful writing!",
+                 "I'm so proud of you!", "That was lovely!", "You're doing so well!",
+                 "Great job, my dear!", "Hooray, sweetie!"];
+const INVITATIONS = ["Let's trace {} together!", "Can you trace {} with me?",
+                     "Time to trace {}, sweetie!", "Here comes {}. Ready?"];
 
 // Phonics rewards: letters pair with a word that starts with their sound,
 // numbers pair with a counted set of objects.
@@ -604,6 +606,91 @@ const store = {
   set soundOn(v) { lsSet("soundOn", v ? "1" : "0"); },
 };
 
+// ---------------------------------------------------------------- trace sound
+// Continuous audio guidance while tracing — an audio "heat map":
+// on the line, a warm tone climbs a pentatonic scale with progress;
+// off the line, a soft low wobble grows louder the farther the finger
+// strays and fades as it comes back. Synthesized live with Web Audio.
+const sound = {
+  ctx: null,
+  scale: [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5], // C major pentatonic
+  ensure() {
+    if (!store.soundOn) return false;
+    if (!this.ctx) {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
+        this.ctx = new AC();
+
+        this.goodOsc = this.ctx.createOscillator();
+        this.goodOsc.type = "sine";
+        this.goodOsc.frequency.value = this.scale[0];
+        this.goodGain = this.ctx.createGain();
+        this.goodGain.gain.value = 0;
+        this.goodOsc.connect(this.goodGain).connect(this.ctx.destination);
+        this.goodOsc.start();
+
+        this.warnOsc = this.ctx.createOscillator();
+        this.warnOsc.type = "triangle";
+        this.warnOsc.frequency.value = 165;
+        this.warnGain = this.ctx.createGain();
+        this.warnGain.gain.value = 0;
+        const tremolo = this.ctx.createGain();
+        tremolo.gain.value = 0.65;
+        this.warnOsc.connect(tremolo);
+        tremolo.connect(this.warnGain).connect(this.ctx.destination);
+        const lfo = this.ctx.createOscillator();
+        lfo.frequency.value = 7;
+        const lfoDepth = this.ctx.createGain();
+        lfoDepth.gain.value = 0.35;
+        lfo.connect(lfoDepth).connect(tremolo.gain);
+        lfo.start();
+        this.warnOsc.start();
+      } catch {
+        this.ctx = null;
+        return false;
+      }
+    }
+    if (this.ctx.state === "suspended") {
+      const p = this.ctx.resume();
+      if (p && p.catch) p.catch(() => {});
+    }
+    return true;
+  },
+  // d: distance from where the finger should be; tol: on-track threshold;
+  // ratio: 0-1 progress along the stroke for the rising melody.
+  update(d, tol, ratio) {
+    if (!this.ensure()) return;
+    const t = this.ctx.currentTime;
+    if (d <= tol) {
+      const idx = Math.max(0, Math.min(this.scale.length - 1,
+                                       Math.floor(ratio * this.scale.length)));
+      this.goodOsc.frequency.setTargetAtTime(this.scale[idx], t, 0.02);
+      this.goodGain.gain.setTargetAtTime(0.1, t, 0.03);
+      this.warnGain.gain.setTargetAtTime(0, t, 0.05);
+    } else {
+      const excess = Math.min(1, (d - tol) / 0.3);
+      this.goodGain.gain.setTargetAtTime(0, t, 0.05);
+      this.warnGain.gain.setTargetAtTime(0.03 + 0.17 * excess, t, 0.03);
+    }
+  },
+  release() {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.goodGain.gain.setTargetAtTime(0, t, 0.06);
+    this.warnGain.gain.setTargetAtTime(0, t, 0.06);
+  },
+  chime() {
+    if (!this.ensure()) return;
+    const t = this.ctx.currentTime;
+    this.warnGain.gain.setTargetAtTime(0, t, 0.02);
+    this.goodOsc.frequency.setValueAtTime(783.99, t);
+    this.goodOsc.frequency.setValueAtTime(1046.5, t + 0.09);
+    this.goodGain.gain.setValueAtTime(0.14, t);
+    this.goodGain.gain.setTargetAtTime(0, t + 0.18, 0.08);
+  },
+};
+
 // ---------------------------------------------------------------- speech
 // Pick the warmest, most natural English voice the device offers.
 // Premium/enhanced/natural voices beat the default compact one; well-liked
@@ -641,10 +728,10 @@ function say(text) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "en-US";
   if (coachVoice) u.voice = coachVoice;
-  // Near-default pitch and a gentle pace — a big pitch boost is what
-  // makes synthesized speech sound robotic.
-  u.rate = 0.95;
-  u.pitch = 1.05;
+  // Near-natural pitch and a soothing, unhurried pace — a big pitch
+  // boost is what makes synthesized speech sound robotic.
+  u.rate = 0.92;
+  u.pitch = 1.02;
   speechSynthesis.speak(u);
 }
 function buzz(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
@@ -698,19 +785,28 @@ class TraceEngine {
     const s = this.current;
     if (!s) return;
     if (s.dot) {
-      if (Math.hypot(x - s.cx, y - s.cy) < START_TOL) this.finishStroke();
+      const d = Math.hypot(x - s.cx, y - s.cy);
+      sound.update(d, START_TOL, 0.5);
+      if (d < START_TOL) this.finishStroke();
       return;
     }
     if (!this.started) {
       const st = s.pts[0];
-      if (Math.hypot(x - st[0], y - st[1]) >= START_TOL) return;
+      const d = Math.hypot(x - st[0], y - st[1]);
+      sound.update(d, START_TOL, 0);
+      if (d >= START_TOL) return;
       this.started = true;
     }
-    const proj = this.project(x, y, s, Math.max(0, this.progress - 0.06), this.progress + MAX_ADVANCE);
-    if (proj !== null && proj > this.progress) this.progress = proj;
+    const hit = this.project(x, y, s, Math.max(0, this.progress - 0.06), this.progress + MAX_ADVANCE);
+    if (hit) {
+      const ratio = s.length > 0 ? Math.min(1, this.progress / s.length) : 0;
+      sound.update(hit.d, TOL, ratio);
+      if (hit.d <= TOL && hit.s > this.progress) this.progress = hit.s;
+    }
     if (this.progress >= s.length - 0.035) this.finishStroke();
   }
   touchEnd() {
+    sound.release();
     if (this.completed || !this.started) return;
     const s = this.current;
     if (!s || s.dot) return;
@@ -720,6 +816,7 @@ class TraceEngine {
     this.progress = 0;
     this.started = false;
     this.idx++;
+    sound.chime();
     if (this.idx >= this.strokes.length) {
       this.completed = true;
       this.onCompleted && this.onCompleted();
@@ -727,8 +824,10 @@ class TraceEngine {
       buzz(20);
     }
   }
+  // Returns {s, d}: arc-length position and distance to the path.
+  // The caller applies the tolerance; the distance drives audio guidance.
   project(x, y, s, w0, w1) {
-    let best = null, bestD = Infinity;
+    let best = null;
     for (let i = 0; i < s.pts.length - 1; i++) {
       const a0 = s.cum[i], a1 = s.cum[i + 1], seg = a1 - a0;
       if (seg <= 0 || a1 < w0 || a0 > w1) continue;
@@ -738,7 +837,7 @@ class TraceEngine {
       const tMin = Math.max(0, (w0 - a0) / seg), tMax = Math.min(1, (w1 - a0) / seg);
       t = Math.min(Math.max(t, tMin), tMax);
       const d = Math.hypot(x - (ax + bx * t), y - (ay + by * t));
-      if (d <= TOL && d < bestD) { bestD = d; best = a0 + seg * t; }
+      if (!best || d < best.d) best = { s: a0 + seg * t, d };
     }
     return best;
   }
@@ -800,6 +899,7 @@ function showScreen(name) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   $("screen-" + name).classList.add("active");
   stopLoop();
+  sound.release();
   if (name === "trace") startLoop();
 }
 
@@ -855,7 +955,10 @@ $("sticker-card").addEventListener("click", openStickers);
 $("btn-stickers-back").addEventListener("click", () => { renderHome(); showScreen("home"); });
 $("btn-sound").addEventListener("click", () => {
   store.soundOn = !store.soundOn;
-  if (!store.soundOn) speechSynthesis && speechSynthesis.cancel();
+  if (!store.soundOn) {
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+    sound.release();
+  }
   renderHome();
 });
 $("btn-reset").addEventListener("click", () => {
@@ -903,7 +1006,8 @@ function openTrace(i) {
   showScreen("trace");
   sizeTraceCanvas();
   requestAnimationFrame(sizeTraceCanvas);
-  say("Let's trace " + ch.say + "!");
+  const invite = INVITATIONS[Math.floor(Math.random() * INVITATIONS.length)];
+  say(invite.replace("{}", ch.say));
   setTimeout(() => engine && engine.startDemo(), 500);
 }
 function renderPips() {

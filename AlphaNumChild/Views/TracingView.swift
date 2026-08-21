@@ -107,6 +107,7 @@ private struct TracingSession: View {
         }
         .onDisappear {
             engine.stopDemo()
+            TraceSound.shared.suspend()
         }
     }
 
