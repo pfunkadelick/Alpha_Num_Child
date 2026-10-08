@@ -180,6 +180,8 @@ private struct RoundControl: View {
 }
 
 /// Confetti, the phonics sticker reward, and Again/Next buttons.
+/// When there's a next character, a Netflix-style countdown auto-advances
+/// after a few seconds; tapping Next skips the wait.
 private struct CelebrationOverlay: View {
     let reward: Rewards.Reward
     let isNewSticker: Bool
@@ -188,6 +190,8 @@ private struct CelebrationOverlay: View {
     let onNext: () -> Void
 
     @State private var rewardScale: CGFloat = 0.2
+    @State private var secondsLeft = 6
+    private let countdown = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
@@ -235,7 +239,7 @@ private struct CelebrationOverlay: View {
 
                     if hasNext {
                         Button(action: onNext) {
-                            Label("Next", systemImage: "arrow.right")
+                            Label("Next · \(secondsLeft)", systemImage: "arrow.right")
                                 .font(.system(.headline, design: .rounded))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 28)
@@ -244,6 +248,14 @@ private struct CelebrationOverlay: View {
                         }
                     }
                 }
+            }
+        }
+        .onReceive(countdown) { _ in
+            guard hasNext else { return }
+            if secondsLeft > 1 {
+                secondsLeft -= 1
+            } else {
+                onNext()
             }
         }
     }
