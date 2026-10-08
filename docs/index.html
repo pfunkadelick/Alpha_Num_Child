@@ -43,6 +43,12 @@
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
+  /* touch-action does not inherit — without this, fast taps on buttons
+     and tiles trigger iOS Safari's double-tap zoom. */
+  *, *::before, *::after {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
   #app {
     font-family: ui-rounded, -apple-system, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
     color: var(--ink);
@@ -384,7 +390,23 @@
     padding: 14px 26px;
   }
   #btn-again { background: var(--paper); color: var(--ink); }
-  #btn-next-cele { background: var(--green); color: #ffffff; }
+  #btn-next-cele {
+    background: var(--green);
+    color: #ffffff;
+    position: relative;
+    overflow: hidden;
+  }
+  #btn-next-cele .fill {
+    position: absolute;
+    inset: 0;
+    width: 0;
+    background: rgba(255,255,255,0.3);
+  }
+  #btn-next-cele.counting .fill {
+    width: 100%;
+    transition: width 6s linear;
+  }
+  #btn-next-cele .label { position: relative; }
 
   /* ---------- Doodle ---------- */
   #screen-doodle { align-items: center; }
@@ -529,7 +551,7 @@
     <p class="new-sticker" id="new-sticker">&#10024; New sticker collected!</p>
     <div class="row">
       <button class="cele-btn" id="btn-again">&#8634; Again</button>
-      <button class="cele-btn" id="btn-next-cele">Next &#8594;</button>
+      <button class="cele-btn" id="btn-next-cele"><span class="fill"></span><span class="label">Next &#8594;</span></button>
     </div>
   </div>
 </div>
@@ -1154,12 +1176,47 @@ function showCelebrate(reward, isNew) {
   disp.style.animation = "";
   $("reward-phrase").textContent = reward.phrase;
   $("new-sticker").style.display = isNew ? "" : "none";
-  $("btn-next-cele").style.display =
-    currentIdx < DATA[currentCat].length - 1 ? "" : "none";
+  const hasNext = currentIdx < DATA[currentCat].length - 1;
+  $("btn-next-cele").style.display = hasNext ? "" : "none";
   $("celebrate").classList.add("active");
   sizeConfetti();
+  if (hasNext) startAutoAdvance();
 }
-function hideCelebrate() { $("celebrate").classList.remove("active"); }
+function hideCelebrate() {
+  cancelAutoAdvance();
+  $("celebrate").classList.remove("active");
+}
+
+// Netflix-style auto-advance: after a celebration, count down on the
+// Next button and move to the next character automatically; any tap
+// (Next, Again, back) cancels or overrides it.
+let autoAdvanceTimer = null;
+function startAutoAdvance() {
+  cancelAutoAdvance();
+  const btn = $("btn-next-cele");
+  let remaining = 6;
+  btn.querySelector(".label").textContent = "Next → " + remaining;
+  void btn.offsetWidth;                // restart the fill animation
+  btn.classList.add("counting");
+  autoAdvanceTimer = setInterval(() => {
+    remaining--;
+    if (remaining <= 0) {
+      hideCelebrate();
+      if (currentIdx < DATA[currentCat].length - 1) openTrace(currentIdx + 1);
+    } else {
+      btn.querySelector(".label").textContent = "Next → " + remaining;
+    }
+  }, 1000);
+}
+function cancelAutoAdvance() {
+  if (autoAdvanceTimer) {
+    clearInterval(autoAdvanceTimer);
+    autoAdvanceTimer = null;
+  }
+  const btn = $("btn-next-cele");
+  btn.classList.remove("counting");
+  btn.querySelector(".label").textContent = "Next →";
+}
 
 $("btn-trace-back").addEventListener("click", () => { hideCelebrate(); openGrid(currentCat); });
 $("btn-prev").addEventListener("click", () => { if (currentIdx > 0) openTrace(currentIdx - 1); });
@@ -1511,6 +1568,15 @@ DOODLE_COLORS.forEach((c, i) => {
 $("btn-undo").addEventListener("click", () => { doodlePaths.pop(); drawDoodle(); });
 $("btn-clear").addEventListener("click", () => { doodlePaths = []; drawDoodle(); });
 $("btn-doodle-back").addEventListener("click", () => { renderHome(); showScreen("home"); });
+
+// ---------------------------------------------------------------- no zoom
+// iOS Safari ignores user-scalable=no, so block pinch zoom explicitly —
+// a tracing app must never zoom under little fingers. (Double-tap zoom
+// is already disabled by touch-action: manipulation on every element.)
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+document.addEventListener("gesturechange", (e) => e.preventDefault());
+document.addEventListener("gestureend", (e) => e.preventDefault());
+document.addEventListener("dblclick", (e) => e.preventDefault(), { passive: false });
 
 // ---------------------------------------------------------------- boot
 renderHome();
